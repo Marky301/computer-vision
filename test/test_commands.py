@@ -317,6 +317,85 @@ class ServerConnect(QtCore.QObject):
         except Exception as e:
             print(f"Error moving object: {e}")
 
+    def extrude_selected_object(self, direction, amount=0.5):
+        """Extrude or intrude the selected object based on direction and selected face."""
+        try:
+            # Get selection
+            selection = FreeCADGui.Selection.getSelectionEx()
+            if not selection:
+                print("No object selected!")
+                return
+
+            obj = selection[0].Object
+            subname = selection[0].SubElementNames[0] if selection[0].SubElementNames else None
+
+            if not subname or not subname.startswith('Face'):
+                print("Please select a face to extrude!")
+                return
+
+            # Get the face number (indexed from 1)
+            face_index = int(subname[4:]) - 1
+
+            # Create unit-aware quantities
+            current_length = FreeCAD.Units.Quantity(obj.Length)
+            current_width = FreeCAD.Units.Quantity(obj.Width)
+            current_height = FreeCAD.Units.Quantity(obj.Height)
+            delta = FreeCAD.Units.Quantity(str(amount) + " mm")
+
+            # Get current placement
+            pos = obj.Placement.Base
+            current_x = FreeCAD.Units.Quantity(str(pos.x) + " mm")
+            current_y = FreeCAD.Units.Quantity(str(pos.y) + " mm")
+            current_z = FreeCAD.Units.Quantity(str(pos.z) + " mm")
+
+            # Map face indices to dimensions with proper unit handling
+            if face_index == 0:  # Back face
+                if direction == "LEFT":
+                    obj.Placement.Base = FreeCAD.Vector(pos.x, (current_y - delta).Value, pos.z)
+                    obj.Length = current_length + delta
+                else:
+                    if current_length.Value > 1.0:
+                        obj.Length = current_length - delta
+            elif face_index == 1:  # Front face
+                if direction == "LEFT":
+                    obj.Length = current_length + delta
+                else:
+                    if current_length.Value > 1.0:
+                        obj.Placement.Base = FreeCAD.Vector(pos.x, (current_y + delta).Value, pos.z)
+                        obj.Length = current_length - delta
+            elif face_index == 2:  # Right face
+                if direction == "LEFT":
+                    obj.Width = current_width + delta
+                else:
+                    if current_width.Value > 1.0:
+                        obj.Width = current_width - delta
+            elif face_index == 3:  # Left face
+                if direction == "LEFT":
+                    obj.Placement.Base = FreeCAD.Vector((current_x - delta).Value, pos.y, pos.z)
+                    obj.Width = current_width + delta
+                else:
+                    if current_width.Value > 1.0:
+                        obj.Width = current_width - delta
+            elif face_index == 4:  # Top face
+                if direction == "LEFT":
+                    obj.Height = current_height + delta
+                else:
+                    if current_height.Value > 1.0:
+                        obj.Height = current_height - delta
+            elif face_index == 5:  # Bottom face
+                if direction == "LEFT":
+                    obj.Placement.Base = FreeCAD.Vector(pos.x, pos.y, (current_z - delta).Value)
+                    obj.Height = current_height + delta
+                else:
+                    if current_height.Value > 1.0:
+                        obj.Height = current_height - delta
+
+            # Update the view
+            self.doc.recompute()
+            print(f"{'Extruded' if direction == 'LEFT' else 'Intruded'} {subname} by {amount} mm")
+
+        except Exception as e:
+            print(f"Error during extrusion: {e}")
     def create_default_object(self):
         """Create a default cube in the scene."""
         try:
@@ -325,22 +404,22 @@ class ServerConnect(QtCore.QObject):
             self.cube.Length = 20
             self.cube.Width = 20
             self.cube.Height = 20
-            
+
             # Position it at origin
             self.cube.Placement.Base = FreeCAD.Vector(0, 0, 0)
-            
+
             # Set visual properties
             self.cube.ViewObject.ShapeColor = (0.8, 0.2, 0.2)  # Red color
-            
+
             self.doc.recompute()
-            
+
             # Set up the view
             view = FreeCADGui.ActiveDocument.ActiveView
             view.viewAxonometric()
-            
+
             # Fit view to object
             view.fitAll()
-            
+
         except Exception as e:
             print(f"Error creating default object: {e}")
             import traceback
@@ -360,7 +439,11 @@ class ServerConnect(QtCore.QObject):
 
         """Process incoming tracking data."""
         try:
-            if data.startswith("VECTOR:"):
+            if data.startswith("PEACE:"):
+                direction = data[6:].strip()  # Get LEFT or RIGHT
+                print(f"Peace sign movement detected: {direction}")
+                self.extrude_selected_object(direction)
+            elif data.startswith("VECTOR:"):
                 # Handle vector movement
                 dx, dy = map(float, data[7:].strip().split(','))
                 self.move_object_by_vector(dx, dy)

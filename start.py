@@ -12,7 +12,12 @@ def main():
     
     # Path to FreeCAD's Python
     # UPDATE THIS ACCORDING TO YOUR COMPUTER AFTER INSTALLING FREECAD
-    freecad_python = r'C:\Users\bmoss\FreeCAD\bin\python.exe'
+
+    # macOS specific location of FreCAD python. Please change according to your own path.
+    # Windows version is below (still need to change path)
+    freecad_python = r'/Applications/FreeCAD.app/Contents/Resources/bin/python'
+    # freecad_python = r'C:\Users\bmoss\FreeCAD\bin\python.exe'
+
     
     # Command to start the main FreeCAD application
     main_cmd = [freecad_python, 'main.py']

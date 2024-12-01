@@ -207,23 +207,6 @@ class GestureHandler:
         except Exception as e:
             print(f"Error rotating object: {e}")
 
-
-    # def handle_object_rotation(self, gesture_data):
-    #     yaw = gesture_data.get('yaw', 0)
-    #     pitch = gesture_data.get('pitch', 0)
-    #     roll = gesture_data.get('roll', 0)
-    #     try:
-    #         selected_object = FreeCADGui.Selection.getSelection()[0]
-    #         current_rotation = selected_object.Placement.Rotation
-    #         delta_rotation = FreeCAD.Rotation(roll, pitch, yaw)
-    #         selected_object.Placement.Rotation = current_rotation.multiply(delta_rotation)
-    #         FreeCADGui.updateGui()
-    #         print(f"Rotated object - Yaw: {yaw}, Pitch: {pitch}, Roll: {roll}")
-    #     except IndexError:
-    #         print("No object selected.")
-    #     except Exception as e:
-    #         print(f"Error in handle_object_rotation: {e}")
-
     def handle_camera_control(self, gesture_data):
         """Control the camera with gestures."""
         yaw = gesture_data.get('yaw', 0)

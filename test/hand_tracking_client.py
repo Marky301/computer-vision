@@ -87,6 +87,39 @@ class HandGestureDetector:
             (point1.z - point2.z) ** 2
         )
 
+    def detect_peace_sign(self, hand_landmarks):
+        """Detect peace sign gesture (index and middle fingers extended, others curled)."""
+        # Get landmarks for MCP (base), PIP (middle) and TIP of each finger
+        index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+        index_pip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_PIP]
+        index_mcp = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP]
+
+        middle_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+        middle_pip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_PIP]
+        middle_mcp = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_MCP]
+
+        ring_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+        ring_pip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_PIP]
+
+        pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
+        pinky_pip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_PIP]
+
+        # Use relative positions for more reliable detection
+        index_extended = (index_tip.y < index_pip.y - 0.04) and (index_pip.y < index_mcp.y)
+        middle_extended = (middle_tip.y < middle_pip.y - 0.04) and (middle_pip.y < middle_mcp.y)
+
+        # For curled fingers, check if tips are significantly below PIPs
+        ring_curled = ring_tip.y > ring_pip.y + 0.02
+        pinky_curled = pinky_tip.y > pinky_pip.y + 0.02
+
+        # All conditions must be met for peace sign
+        is_peace = index_extended and middle_extended and (ring_curled or pinky_curled)
+
+        if is_peace:
+            print("PEACE SIGN DETECTED!")
+
+        return is_peace
+
     def detect_pointing(self, hand_landmarks):
         """Detect pointing gesture with index finger extended and other fingers curled."""
         # Get landmarks for the index and other fingers
@@ -122,9 +155,9 @@ class HandGestureDetector:
         )
 
         # Debugging information
-        print(f"Index Distance: {index_distance}, Index Extended: {index_extended}")
-        print(f"Middle Distance: {middle_distance}, Ring Distance: {ring_distance}, Pinky Distance: {pinky_distance}")
-        print(f"Other Fingers Curled: {other_fingers_curled}")
+        # print(f"Index Distance: {index_distance}, Index Extended: {index_extended}")
+        # print(f"Middle Distance: {middle_distance}, Ring Distance: {ring_distance}, Pinky Distance: {pinky_distance}")
+        # print(f"Other Fingers Curled: {other_fingers_curled}")
 
         # Check pointing condition
         is_pointing = index_extended and other_fingers_curled
@@ -189,7 +222,7 @@ class HandGestureDetector:
         dy = palm_center[1] - self.initial_fist_position[1]
 
         # Scale the movements (adjust these multipliers as needed)
-        movement_scale = 5  # Adjust this to control movement sensitivity
+        movement_scale = 1  # Adjust this to control movement sensitivity
         scaled_dx = dx * movement_scale
         scaled_dy = dy * movement_scale
 
@@ -240,6 +273,22 @@ class HandTrackingClient:
                 coord_str = format_coordinates(hand_landmarks, frame.shape)
                 print(f"Sending finger coords: {coord_str}")
                 self.client.send(coord_str.encode('utf-8'))
+
+                is_peace = self.gesture_detector.detect_peace_sign(hand_landmarks)
+                if is_peace:
+                    # Get the horizontal position of the hand center
+                    hand_center_x = hand_landmarks.landmark[0].x  # Using wrist as reference point
+
+                    # Calculate movement from center of frame
+                    frame_center_x = frame.shape[1] / 2
+                    screen_x = int(hand_center_x * frame.shape[1])
+
+                    # Determine direction based on position relative to center
+                    direction = "LEFT" if screen_x < frame_center_x else "RIGHT"
+
+                    print(f"Peace sign detected moving {direction}!")
+                    peace_cmd = f"PEACE:{direction}\n"
+                    self.client.send(peace_cmd.encode('utf-8'))
 
                 # Check for fist gesture and handle movement
                 self.gesture_detector.is_fist = self.gesture_detector.detect_fist(hand_landmarks)
